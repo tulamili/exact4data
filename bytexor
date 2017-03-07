@@ -18,10 +18,10 @@ sub main ( ) {
             *STDIN = $fh ; 
             my ( $c, $x ) = core ( $_ ) ; 
             close $fh ; 
-            $c0 ^= $c ; 
-            $x0 ^=  $x ; 
+            $c0 += $c ; 
+            $x0 ^= $x ; 
         }
-        print sprintf '%02XH(%08b)%s%d%s' , $x0 , $x0 , "\t" , $c0 , "\n" ; 
+        print sprintf '%02XH(%08b)%s%d%s' , $x0 , $x0 , "\t" , $c0 , "\n" if @ARGV >= 2  ; 
 
     }
     else { 
