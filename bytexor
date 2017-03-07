@@ -1,0 +1,76 @@
+#!/usr/bin/perl
+use 5.014 ; use strict ; use warnings ; 
+use Getopt::Std ; getopts '', \my%o ; 
+use autodie qw[ open ] ; 
+sub main ( ) ; 
+sub core ( $ ) ; 
+
+main () ; 
+exit 0 ; 
+
+sub main ( ) { 
+    my $c0 = 0 ; # 読み取ったバイト数
+    my $x0 = 0 ; # 読み取ったバイトの全部の排他的論理和
+
+    if ( @ARGV ) { 
+        for ( @ARGV ) { 
+            open my $fh , '<', $_ ; 
+            *STDIN = $fh ; 
+            my ( $c, $x ) = core ( $_ ) ; 
+            close $fh ; 
+            $c0 ^= $c ; 
+            $x0 ^=  $x ; 
+        }
+        print sprintf '%02XH(%08b)%s%d%s' , $x0 , $x0 , "\t" , $c0 , "\n" ; 
+
+    }
+    else { 
+        core ('') ; 
+    }
+} 
+
+sub core ( $ ) { 
+    my ( $chars , $xttl ) = (0,0) ; 
+    while ( read *STDIN , my $buf , 1 ) { 
+        $chars ++ ; 
+        $xttl ^= ord $buf ; 
+    }
+    print sprintf '%02XH(%08b)%s%d%s%s%s' , $xttl , $xttl , "\t" , $chars , "\t" , "$_[0]" , "\n" ; 
+    return $chars , $xttl ; 
+}
+
+sub VERSION_MESSAGE {}
+sub HELP_MESSAGE {
+    use FindBin qw[ $Script ] ; 
+    my ($a1,$L,$opt,@out) = ($ARGV[1]//'',0,'^o(p(t(i(o(ns?)?)?)?)?)?$') ;
+    open my $FH , '<' , $0 ;
+    while(<$FH>){
+        s/\$0/$Script/g ;
+        $out[$L] .= $_ if s/^=head1\s*(.*)\n/$1/s .. s/^=cut\n//s && ++$L and $a1 =~ /$opt/i ? m/^\s+\-/ : 1 ;
+    }
+    close $FH ;
+    print $ENV{LANG} =~ m/^ja/ ? $out[0] : $out[1] // $out[0] ;
+    exit 0 ;
+}
+
+
+=encoding utf8
+
+=head1
+
+  $0
+
+    入力の各バイト(8ビット)の排他的論理和を16進数と2進数で表示する。
+    バイト数も出力する。
+
+=cut
+
+
+=head1
+
+  $0
+
+    outputs byte-wise xor (exclusive or) of input. 
+    The byte counts are also outputted.   
+
+=cut
