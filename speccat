@@ -15,6 +15,7 @@ while ( <> ) {
 	my @F = split /\t/ , $_ , -1 ; 
 	my $of = shift  @F ; # 出力先のファイル
 	my @sizes = map { -s $_ } @F ; 
+	do{ print STDERR CYAN "some file to be input does not exist: " , join ("\t",@F), "\n" ; next } if grep  { ! -e $_ } @F ; 
 	unshift @sizes, sum0 @sizes ; 
 
 	do { print join ("\t", @sizes), "\n" ; next } if $o{n} ;
@@ -24,7 +25,7 @@ while ( <> ) {
 	my $ctx = Digest::SHA1 -> new ; 
 	for ( @F ) { 
 		open my $ifh , '<' , $_ ; 
-		while ( read $ifh , my $buf , 1024 ) { 
+		while ( read $ifh , my $buf , 1024 ) { # <-- - 1024という数は別の数でも良いはず
 			print {$tfh} $buf ; 
 			$ctx -> add ( $buf ) unless $o{f} ;
 		}
