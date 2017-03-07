@@ -1,0 +1,98 @@
+#!/usr/bin/perl
+use 5.001 ; use strict ; use warnings ; 
+use Getopt::Std ; getopts 'dnf' , \my%o ; 
+use List::Util qw[ sum sum0	] ;
+use Digest::SHA1 qw[ sha1 sha1_hex sha1_base64 ] ; 
+use File::Temp qw [ tempfile ] ;
+use Term::ANSIColor qw[ :constants ] ; $Term::ANSIColor::AUTORESET = 1 ; 
+use autodie qw[ open ] ;
+
+sub filesha1 ( $ ) ; 
+
+$| = 1 ;
+while ( <> ) { 
+	chomp ; 
+	my @F = split /\t/ , $_ , -1 ; 
+	my $of = shift  @F ; # 出力先のファイル
+	my @sizes = map { -s $_ } @F ; 
+	unshift @sizes, sum0 @sizes ; 
+
+	do { print join ("\t", @sizes), "\n" ; next } if $o{n} ;
+
+	my ( $tfh , $tfn ) = tempfile () ; 
+
+	my $ctx = Digest::SHA1 -> new ; 
+	for ( @F ) { 
+		open my $ifh , '<' , $_ ; 
+		while ( read $ifh , my $buf , 1024 ) { 
+			print {$tfh} $buf ; 
+			$ctx -> add ( $buf ) unless $o{f} ;
+		}
+		close $ifh ; 
+	}
+	close $tfh ; 
+	my $idig = $ctx -> hexdigest ; 
+	my $tdig = filesha1 ( $tfn ) unless $o{f} ;
+
+	if ( ! -e $of and ! $o{f} ||  $idig eq $tdig ) { 
+		rename $tfn , $of ; 
+		unlink @F if $o{d} ;
+	}
+	elsif ( -e $of ) { 
+		print STDERR CYAN "File `$of' already exists. " ;
+
+		if ( filesha1 ( $of )  eq $tdig ) { 
+			print STDERR CYAN "Though SHA1SUMs coincident.\n" ;
+			unlink @F if $o{d} ;
+		}
+		else { 
+			print STDERR CYAN  "SHA1SUM also differ.\n" ; 
+		}
+
+		unlink $tfn ; 
+	} 
+	elsif ( $idig ne $tdig ) { print STDERR CYAN "SHA1SUM for `$of' discrepancy occur while the concatenation." }
+
+} 
+
+sub filesha1 ( $ ) { 
+	my $fn = $_[0] ;
+	open my $fh , '<' , $fn ; 
+	my $ctx = Digest::SHA1 -> new ; 
+	$ctx -> addfile ( $fh ) ; 
+	close $fh ;
+	return  $ctx -> hexdigest ; 
+}
+
+
+sub VERSION_MESSAGE {}
+sub HELP_MESSAGE {
+    use FindBin qw[ $Script ] ; 
+    my ($a1,$L,$opt,@out) = ($ARGV[1]//'',0,'^o(p(t(i(o(ns?)?)?)?)?)?$') ;
+    open my $FH , '<' , $0 ;
+    while(<$FH>){
+        s/\$0/$Script/g ;
+        $out[$L] .= $_ if s/^=head1\s*(.*)\n/$1/s .. s/^=cut\n//s && ++$L and $a1 =~ /$opt/i ? m/^\s+\-/ : 1 ;
+    }
+    close $FH ;
+    print $ENV{LANG} =~ m/^ja/ ? $out[0] : $out[1] // $out[0] ;
+    exit 0 ;
+}
+
+=encoding utf8
+
+=head1
+
+$0 
+
+ 複数の行から成る入力を読取り、各行について、タブ文字で区切った
+  2列目以降でしているされルファイル名のリストを1列目で指定される
+  ファイル名に連結する(concat する)。
+
+ オプション: 
+   -d : 2列目以降に指定されているファイルを問題無ければ、消去する。
+   -n : ファイルサイズを表示する。2列目以降は実際の様子。1列目は、作られるファイルの様子。
+   -f : sha1サムによるチェックをしない。
+
+=cut
+
